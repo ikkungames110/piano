@@ -8,6 +8,7 @@ const playAscending = document.querySelector("#play-ascending");
 const playDescending = document.querySelector("#play-descending");
 const playAscendingLoop = document.querySelector("#play-ascending-loop");
 const playDescendingLoop = document.querySelector("#play-descending-loop");
+const playAlternatingLoop = document.querySelector("#play-alternating-loop");
 
 const MAJOR_SOLFEGE = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ", "ド"];
 const MINOR_SOLFEGE = ["ラ", "シ", "ド", "レ", "ミ", "ファ", "ソ", "ラ"];
@@ -320,6 +321,7 @@ function updateLoopControls() {
   [
     [playAscendingLoop, "ascending"],
     [playDescendingLoop, "descending"],
+    [playAlternatingLoop, "alternating"],
   ].forEach(([button, mode]) => {
     const isActive = activeLoopMode === mode;
     button.classList.toggle("is-looping", isActive);
@@ -372,9 +374,16 @@ function playSequence(order) {
   );
 }
 
-function scheduleLoopStep(order, sequenceIndex = 0) {
+function scheduleLoopStep(orders, orderIndex = 0, sequenceIndex = 0) {
   const loopMode = activeLoopMode;
   if (!loopMode) return;
+
+  const order = orders[orderIndex];
+  if (!order || order.length === 0) {
+    stopLoop();
+    clearPlaying();
+    return;
+  }
 
   const degreeIndex = order[sequenceIndex];
   const note = activeNotes[degreeIndex];
@@ -389,11 +398,13 @@ function scheduleLoopStep(order, sequenceIndex = 0) {
   loopTimer = window.setTimeout(() => {
     loopTimer = undefined;
     if (activeLoopMode !== loopMode) return;
-    scheduleLoopStep(order, (sequenceIndex + 1) % order.length);
+    const nextSequenceIndex = (sequenceIndex + 1) % order.length;
+    const nextOrderIndex = nextSequenceIndex === 0 ? (orderIndex + 1) % orders.length : orderIndex;
+    scheduleLoopStep(orders, nextOrderIndex, nextSequenceIndex);
   }, SEQUENCE_STEP_MS);
 }
 
-function playLoopSequence(mode, order) {
+function playLoopSequence(mode, orders) {
   if (activeLoopMode === mode) {
     clearScheduledTimers();
     clearPlaying();
@@ -403,7 +414,7 @@ function playLoopSequence(mode, order) {
   clearScheduledTimers();
   activeLoopMode = mode;
   updateLoopControls();
-  scheduleLoopStep(order);
+  scheduleLoopStep(orders);
 }
 
 function renderOptions() {
@@ -503,6 +514,9 @@ render();
 keySelect.addEventListener("change", render);
 playAscending.addEventListener("click", () => playSequence(ASCENDING_ORDER));
 playDescending.addEventListener("click", () => playSequence(DESCENDING_ORDER));
-playAscendingLoop.addEventListener("click", () => playLoopSequence("ascending", ASCENDING_ORDER));
-playDescendingLoop.addEventListener("click", () => playLoopSequence("descending", DESCENDING_ORDER));
+playAscendingLoop.addEventListener("click", () => playLoopSequence("ascending", [ASCENDING_ORDER]));
+playDescendingLoop.addEventListener("click", () => playLoopSequence("descending", [DESCENDING_ORDER]));
+playAlternatingLoop.addEventListener("click", () =>
+  playLoopSequence("alternating", [ASCENDING_ORDER, DESCENDING_ORDER]),
+);
 window.addEventListener("resize", renderKeyboard);
