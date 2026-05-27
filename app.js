@@ -6,6 +6,8 @@ const solfegeButtons = document.querySelector("#solfege-buttons");
 const keyboard = document.querySelector("#keyboard");
 const playAscending = document.querySelector("#play-ascending");
 const playDescending = document.querySelector("#play-descending");
+const playAscendingLoop = document.querySelector("#play-ascending-loop");
+const playDescendingLoop = document.querySelector("#play-descending-loop");
 
 const MAJOR_SOLFEGE = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ", "ド"];
 const MINOR_SOLFEGE = ["ラ", "シ", "ド", "レ", "ミ", "ファ", "ソ", "ラ"];
@@ -130,10 +132,17 @@ const KEYBOARD_BLACK = [
   { note: "A#4", afterWhiteIndex: 12 },
 ];
 
+const ASCENDING_ORDER = [0, 1, 2, 3, 4, 5, 6, 7];
+const DESCENDING_ORDER = [7, 6, 5, 4, 3, 2, 1, 0];
+const SEQUENCE_STEP_MS = 620;
+const SEQUENCE_NOTE_DURATION = 0.92;
+
 let audioContext;
 let activeKey = KEYS[0];
 let activeNotes = [];
 let scheduledTimers = [];
+let loopTimer;
+let activeLoopMode = null;
 
 function displayNoteName(noteName) {
   return noteName.replace(/#/g, DISPLAY_ACCIDENTALS["#"]).replace(/b/g, DISPLAY_ACCIDENTALS.b);
@@ -307,9 +316,34 @@ function clearPlaying() {
   setPlayingIndex(-1);
 }
 
+function updateLoopControls() {
+  [
+    [playAscendingLoop, "ascending"],
+    [playDescendingLoop, "descending"],
+  ].forEach(([button, mode]) => {
+    const isActive = activeLoopMode === mode;
+    button.classList.toggle("is-looping", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function clearLoopTimer() {
+  if (loopTimer) {
+    window.clearTimeout(loopTimer);
+    loopTimer = undefined;
+  }
+}
+
+function stopLoop() {
+  clearLoopTimer();
+  activeLoopMode = null;
+  updateLoopControls();
+}
+
 function clearScheduledTimers() {
   scheduledTimers.forEach((timer) => window.clearTimeout(timer));
   scheduledTimers = [];
+  stopLoop();
 }
 
 function playDegree(index) {
@@ -324,18 +358,52 @@ function playDegree(index) {
 
 function playSequence(order) {
   clearScheduledTimers();
-  const stepMs = 620;
-  const noteDuration = 0.92;
 
   order.forEach((degreeIndex, sequenceIndex) => {
     const timer = window.setTimeout(() => {
       setPlayingIndex(degreeIndex);
-      playTone(activeNotes[degreeIndex], noteDuration, "legato");
-    }, sequenceIndex * stepMs);
+      playTone(activeNotes[degreeIndex], SEQUENCE_NOTE_DURATION, "legato");
+    }, sequenceIndex * SEQUENCE_STEP_MS);
     scheduledTimers.push(timer);
   });
 
-  scheduledTimers.push(window.setTimeout(clearPlaying, order.length * stepMs + noteDuration * 1000));
+  scheduledTimers.push(
+    window.setTimeout(clearPlaying, order.length * SEQUENCE_STEP_MS + SEQUENCE_NOTE_DURATION * 1000),
+  );
+}
+
+function scheduleLoopStep(order, sequenceIndex = 0) {
+  const loopMode = activeLoopMode;
+  if (!loopMode) return;
+
+  const degreeIndex = order[sequenceIndex];
+  const note = activeNotes[degreeIndex];
+  if (!note) {
+    stopLoop();
+    clearPlaying();
+    return;
+  }
+
+  setPlayingIndex(degreeIndex);
+  playTone(note, SEQUENCE_NOTE_DURATION, "legato");
+  loopTimer = window.setTimeout(() => {
+    loopTimer = undefined;
+    if (activeLoopMode !== loopMode) return;
+    scheduleLoopStep(order, (sequenceIndex + 1) % order.length);
+  }, SEQUENCE_STEP_MS);
+}
+
+function playLoopSequence(mode, order) {
+  if (activeLoopMode === mode) {
+    clearScheduledTimers();
+    clearPlaying();
+    return;
+  }
+
+  clearScheduledTimers();
+  activeLoopMode = mode;
+  updateLoopControls();
+  scheduleLoopStep(order);
 }
 
 function renderOptions() {
@@ -433,6 +501,8 @@ keySelect.value = "0";
 render();
 
 keySelect.addEventListener("change", render);
-playAscending.addEventListener("click", () => playSequence([0, 1, 2, 3, 4, 5, 6, 7]));
-playDescending.addEventListener("click", () => playSequence([7, 6, 5, 4, 3, 2, 1, 0]));
+playAscending.addEventListener("click", () => playSequence(ASCENDING_ORDER));
+playDescending.addEventListener("click", () => playSequence(DESCENDING_ORDER));
+playAscendingLoop.addEventListener("click", () => playLoopSequence("ascending", ASCENDING_ORDER));
+playDescendingLoop.addEventListener("click", () => playLoopSequence("descending", DESCENDING_ORDER));
 window.addEventListener("resize", renderKeyboard);
