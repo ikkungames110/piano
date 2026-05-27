@@ -135,6 +135,7 @@ const KEYBOARD_BLACK = [
 
 const ASCENDING_ORDER = [0, 1, 2, 3, 4, 5, 6, 7];
 const DESCENDING_ORDER = [7, 6, 5, 4, 3, 2, 1, 0];
+const ALTERNATING_ORDER = [...ASCENDING_ORDER, ...DESCENDING_ORDER];
 const SEQUENCE_STEP_MS = 620;
 const SEQUENCE_NOTE_DURATION = 0.92;
 
@@ -374,11 +375,10 @@ function playSequence(order) {
   );
 }
 
-function scheduleLoopStep(orders, orderIndex = 0, sequenceIndex = 0) {
+function scheduleLoopStep(order, sequenceIndex = 0) {
   const loopMode = activeLoopMode;
   if (!loopMode) return;
 
-  const order = orders[orderIndex];
   if (!order || order.length === 0) {
     stopLoop();
     clearPlaying();
@@ -398,13 +398,11 @@ function scheduleLoopStep(orders, orderIndex = 0, sequenceIndex = 0) {
   loopTimer = window.setTimeout(() => {
     loopTimer = undefined;
     if (activeLoopMode !== loopMode) return;
-    const nextSequenceIndex = (sequenceIndex + 1) % order.length;
-    const nextOrderIndex = nextSequenceIndex === 0 ? (orderIndex + 1) % orders.length : orderIndex;
-    scheduleLoopStep(orders, nextOrderIndex, nextSequenceIndex);
+    scheduleLoopStep(order, (sequenceIndex + 1) % order.length);
   }, SEQUENCE_STEP_MS);
 }
 
-function playLoopSequence(mode, orders) {
+function playLoopSequence(mode, order) {
   if (activeLoopMode === mode) {
     clearScheduledTimers();
     clearPlaying();
@@ -414,7 +412,7 @@ function playLoopSequence(mode, orders) {
   clearScheduledTimers();
   activeLoopMode = mode;
   updateLoopControls();
-  scheduleLoopStep(orders);
+  scheduleLoopStep(order);
 }
 
 function renderOptions() {
@@ -514,9 +512,7 @@ render();
 keySelect.addEventListener("change", render);
 playAscending.addEventListener("click", () => playSequence(ASCENDING_ORDER));
 playDescending.addEventListener("click", () => playSequence(DESCENDING_ORDER));
-playAscendingLoop.addEventListener("click", () => playLoopSequence("ascending", [ASCENDING_ORDER]));
-playDescendingLoop.addEventListener("click", () => playLoopSequence("descending", [DESCENDING_ORDER]));
-playAlternatingLoop.addEventListener("click", () =>
-  playLoopSequence("alternating", [ASCENDING_ORDER, DESCENDING_ORDER]),
-);
+playAscendingLoop.addEventListener("click", () => playLoopSequence("ascending", ASCENDING_ORDER));
+playDescendingLoop.addEventListener("click", () => playLoopSequence("descending", DESCENDING_ORDER));
+playAlternatingLoop.addEventListener("click", () => playLoopSequence("alternating", ALTERNATING_ORDER));
 window.addEventListener("resize", renderKeyboard);
