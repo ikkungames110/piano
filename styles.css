@@ -1,0 +1,354 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f4ee;
+  --ink: #1f2328;
+  --muted: #68707a;
+  --line: #d8d0c4;
+  --panel: #fffaf1;
+  --panel-strong: #fff5df;
+  --accent: #1a7f64;
+  --accent-dark: #0d5f4a;
+  --accent-soft: #dff3ec;
+  --note: #b9472d;
+  --shadow: 0 22px 50px rgba(56, 42, 25, 0.14);
+  --white-key-width: 58px;
+  --black-key-width: 36px;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
+    var(--bg);
+  color: var(--ink);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 32px 0 40px;
+}
+
+.control-band {
+  display: grid;
+  grid-template-columns: 1fr minmax(320px, 460px);
+  gap: 24px;
+  align-items: end;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent-dark);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  line-height: 0.96;
+  letter-spacing: 0;
+}
+
+.selector-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 136px;
+  gap: 12px;
+  align-items: end;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.field span,
+.signature-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 42px 0 14px;
+  border: 1px solid #b9afa0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.signature-panel {
+  display: grid;
+  gap: 7px;
+  min-height: 48px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+}
+
+.signature-panel strong {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.scale-panel {
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(56, 42, 25, 0.08);
+}
+
+.scale-header {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+h2 {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+#note-line {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.sequence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.action-button,
+.solfege-button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    transform 130ms ease,
+    background-color 130ms ease,
+    box-shadow 130ms ease;
+}
+
+.action-button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.action-button:hover,
+.solfege-button:hover {
+  transform: translateY(-1px);
+}
+
+.action-button:active,
+.solfege-button:active {
+  transform: translateY(0);
+}
+
+.solfege-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(74px, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.solfege-button {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 8px 12px;
+  background: #f0f7f4;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px #c6dfd5;
+}
+
+.solfege-button .degree {
+  font-size: clamp(1.3rem, 2.5vw, 2rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.solfege-button .note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.solfege-button.is-playing {
+  background: #ffe9de;
+  box-shadow:
+    inset 0 0 0 2px var(--note),
+    0 10px 22px rgba(185, 71, 45, 0.18);
+}
+
+.keyboard-section {
+  margin-top: 22px;
+  padding: 20px 0;
+}
+
+.keyboard-wrap {
+  overflow-x: auto;
+  padding: 8px 0 14px;
+}
+
+.keyboard {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(16, var(--white-key-width));
+  width: max-content;
+  min-height: 178px;
+  padding: 0 6px 6px;
+  border: 1px solid #2d2f32;
+  border-radius: 8px;
+  background: #25282c;
+}
+
+.white-key {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 170px;
+  margin-top: 0;
+  padding-bottom: 12px;
+  border: 1px solid #c8c8c8;
+  border-bottom-width: 4px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, #ffffff, #f3f0ea);
+  color: #42474d;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.white-key.is-scale {
+  background: linear-gradient(180deg, #ffffff, #dff3ec);
+}
+
+.white-key.is-playing {
+  background: linear-gradient(180deg, #fff7e6, #ffcbb5);
+  color: #6c2a1b;
+}
+
+.black-key {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  width: var(--black-key-width);
+  height: 104px;
+  border: 1px solid #111315;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #202327, #070809);
+  color: #ffffff;
+  font-size: 0.64rem;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.black-key.is-scale {
+  background: linear-gradient(180deg, #256f5b, #0a3f33);
+}
+
+.black-key.is-playing {
+  background: linear-gradient(180deg, #d85e3d, #7c2415);
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: min(100vw - 20px, 560px);
+    padding-top: 14px;
+  }
+
+  .control-band,
+  .scale-panel {
+    padding: 18px;
+  }
+
+  .control-band,
+  .scale-header,
+  .selector-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scale-header {
+    display: grid;
+  }
+
+  .sequence-actions {
+    justify-content: stretch;
+  }
+
+  .action-button {
+    flex: 1 1 150px;
+  }
+
+  .solfege-grid {
+    grid-template-columns: repeat(4, minmax(64px, 1fr));
+  }
+
+  .keyboard {
+    --white-key-width: 44px;
+    --black-key-width: 30px;
+    grid-template-columns: repeat(16, var(--white-key-width));
+    min-height: 150px;
+  }
+
+  .white-key {
+    height: 142px;
+  }
+
+  .black-key {
+    height: 88px;
+  }
+}
+
+@media (max-width: 400px) {
+  .solfege-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

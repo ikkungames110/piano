@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>移動ド キープレイヤー</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="control-band" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Movable Do Key Player</p>
+          <h1 id="page-title">移動ド キープレイヤー</h1>
+        </div>
+
+        <div class="selector-grid">
+          <label class="field">
+            <span>キー</span>
+            <select id="key-select" aria-label="キーを選択"></select>
+          </label>
+
+          <div class="signature-panel" aria-live="polite">
+            <span class="signature-label">調号</span>
+            <strong id="signature-text">#0 / ♭0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="scale-panel" aria-label="スケール演奏">
+        <div class="scale-header">
+          <div>
+            <h2 id="selected-key">Cメジャースケール</h2>
+            <p id="note-line">C3 D3 E3 F3 G3 A3 B3 C4</p>
+          </div>
+          <div class="sequence-actions">
+            <button class="action-button" id="play-ascending" type="button">
+              <span aria-hidden="true">↑</span>
+              下から順に
+            </button>
+            <button class="action-button" id="play-descending" type="button">
+              <span aria-hidden="true">↓</span>
+              上から順に
+            </button>
+          </div>
+        </div>
+
+        <div class="solfege-grid" id="solfege-buttons" aria-label="移動ドボタン"></div>
+      </section>
+
+      <section class="keyboard-section" aria-label="ピアノ表示">
+        <div class="keyboard-wrap">
+          <div class="keyboard" id="keyboard" aria-hidden="true"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
