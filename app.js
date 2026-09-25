@@ -143,7 +143,14 @@ let audioContext;
 let activeKey = KEYS[0];
 let activeNotes = [];
 let scheduledTimers = [];
-let loopTimer;
+const sequenceAudio = document.querySelector("#sequence-audio");
+const playbackStatus = document.querySelector("#playback-status");
+const sequenceButtons = [playAscending, playDescending, playAscendingLoop, playDescendingLoop, playAlternatingLoop];
+let sequenceSources = new Map();
+let preparationVersion = 0;
+let playbackVersion = 0;
+let playingOrder = null;
+let highlightFrame;
 let activeLoopMode = null;
 
 function displayNoteName(noteName) {
@@ -275,10 +282,13 @@ function scheduleEnvelope(gain, now, duration, instrument, articulation) {
 function playTone(scaleNote, duration = 0.58, articulation = "normal") {
   ensureAudioContext();
 
+  scheduleTone(audioContext, scaleNote, audioContext.currentTime, duration, articulation);
+}
+
+function scheduleTone(context, scaleNote, now, duration, articulation) {
   const instrument = ORGAN_INSTRUMENT;
-  const now = audioContext.currentTime;
-  const masterGain = audioContext.createGain();
-  const filter = audioContext.createBiquadFilter();
+  const masterGain = context.createGain();
+  const filter = context.createBiquadFilter();
 
   filter.type = "lowpass";
   filter.frequency.setValueAtTime(instrument.filterFrequency, now);
@@ -286,11 +296,11 @@ function playTone(scaleNote, duration = 0.58, articulation = "normal") {
   scheduleEnvelope(masterGain, now, duration, instrument, articulation);
 
   filter.connect(masterGain);
-  masterGain.connect(audioContext.destination);
+  masterGain.connect(context.destination);
 
   instrument.partials.forEach((partial) => {
-    const oscillator = audioContext.createOscillator();
-    const partialGain = audioContext.createGain();
+    const oscillator = context.createOscillator();
+    const partialGain = context.createGain();
 
     oscillator.type = partial.type;
     oscillator.frequency.setValueAtTime(scaleNote.frequency * partial.ratio, now);
@@ -330,17 +340,16 @@ function updateLoopControls() {
   });
 }
 
-function clearLoopTimer() {
-  if (loopTimer) {
-    window.clearTimeout(loopTimer);
-    loopTimer = undefined;
-  }
-}
-
 function stopLoop() {
-  clearLoopTimer();
+  playbackVersion += 1;
+  sequenceAudio.pause();
+  sequenceAudio.removeAttribute("src");
+  sequenceAudio.load();
+  playingOrder = null;
+  cancelAnimationFrame(highlightFrame);
   activeLoopMode = null;
   updateLoopControls();
+  clearPlaying();
 }
 
 function clearScheduledTimers() {
@@ -359,61 +368,129 @@ function playDegree(index) {
   scheduledTimers.push(window.setTimeout(clearPlaying, 620));
 }
 
-function playSequence(order) {
-  clearScheduledTimers();
-
-  order.forEach((degreeIndex, sequenceIndex) => {
-    const timer = window.setTimeout(() => {
-      setPlayingIndex(degreeIndex);
-      playTone(activeNotes[degreeIndex], SEQUENCE_NOTE_DURATION, "legato");
-    }, sequenceIndex * SEQUENCE_STEP_MS);
-    scheduledTimers.push(timer);
+// Render the whole phrase so background playback never depends on JS timers.
+function waveUrl(samples, sampleRate) {
+  const bytes = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(bytes);
+  const writeText = (offset, value) => {
+    for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+  };
+  writeText(0, "RIFF");
+  view.setUint32(4, bytes.byteLength - 8, true);
+  writeText(8, "WAVEfmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  samples.forEach((sample, index) => {
+    const value = Math.max(-1, Math.min(1, sample));
+    view.setInt16(44 + index * 2, Math.round(value * (value < 0 ? 32768 : 32767)), true);
   });
-
-  scheduledTimers.push(
-    window.setTimeout(clearPlaying, order.length * SEQUENCE_STEP_MS + SEQUENCE_NOTE_DURATION * 1000),
-  );
+  return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
 }
 
-function scheduleLoopStep(order, sequenceIndex = 0) {
-  const loopMode = activeLoopMode;
-  if (!loopMode) return;
+async function prepareSequences() {
+  const version = ++preparationVersion;
+  sequenceButtons.forEach((button) => { button.disabled = true; });
+  playbackStatus.textContent = "音声を準備しています…";
+  sequenceSources.forEach((url) => URL.revokeObjectURL(url));
+  sequenceSources = new Map();
+  const sources = new Map();
+  const notes = activeNotes;
+  try {
+    const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const sampleRate = 44100;
+    for (const order of [ASCENDING_ORDER, DESCENDING_ORDER, ALTERNATING_ORDER]) {
+      const cycleFrames = Math.round(order.length * SEQUENCE_STEP_MS / 1000 * sampleRate);
+      const context = new OfflineContext(1, cycleFrames + Math.ceil(SEQUENCE_NOTE_DURATION * sampleRate), sampleRate);
+      order.forEach((degree, index) => {
+        scheduleTone(context, notes[degree], index * SEQUENCE_STEP_MS / 1000, SEQUENCE_NOTE_DURATION, "legato");
+      });
+      const buffer = await context.startRendering();
+      if (version !== preparationVersion) break;
+      const samples = buffer.getChannelData(0);
+      if (order !== ALTERNATING_ORDER) sources.set(order.join(","), waveUrl(samples, sampleRate));
+      const loopSamples = samples.slice(0, cycleFrames);
+      // Carry the release of the last note across the loop boundary.
+      for (let i = cycleFrames; i < samples.length; i += 1) loopSamples[i - cycleFrames] += samples[i];
+      sources.set(`${order.join(",")}:loop`, waveUrl(loopSamples, sampleRate));
+    }
+    if (version !== preparationVersion) {
+      sources.forEach((url) => URL.revokeObjectURL(url));
+      return;
+    }
+    sequenceSources = sources;
+    sequenceButtons.forEach((button) => { button.disabled = false; });
+    playbackStatus.textContent = "再生開始後は、別のアプリや画面ロック中も再生を続けられます（端末・ブラウザによります）。";
+  } catch (error) {
+    sources.forEach((url) => URL.revokeObjectURL(url));
+    if (version === preparationVersion) playbackStatus.textContent = "音声を準備できませんでした。ページを再読み込みしてください。";
+    console.error(error);
+  }
+}
 
-  if (!order || order.length === 0) {
-    stopLoop();
+function syncPlaybackHighlight() {
+  cancelAnimationFrame(highlightFrame);
+  if (!playingOrder) return;
+  if (sequenceAudio.paused || sequenceAudio.ended) {
     clearPlaying();
     return;
   }
+  const step = Math.floor(sequenceAudio.currentTime * 1000 / SEQUENCE_STEP_MS);
+  const index = sequenceAudio.loop ? step % playingOrder.length : Math.min(step, playingOrder.length - 1);
+  setPlayingIndex(playingOrder[index]);
+  if (!document.hidden) highlightFrame = requestAnimationFrame(syncPlaybackHighlight);
+}
 
-  const degreeIndex = order[sequenceIndex];
-  const note = activeNotes[degreeIndex];
-  if (!note) {
-    stopLoop();
-    clearPlaying();
-    return;
+function playSequence(order, loopMode = null) {
+  const source = sequenceSources.get(`${order.join(",")}${loopMode ? ":loop" : ""}`);
+  if (!source) return;
+  clearScheduledTimers();
+  const version = playbackVersion;
+  playingOrder = order;
+  activeLoopMode = loopMode;
+  updateLoopControls();
+  sequenceAudio.src = source;
+  sequenceAudio.loop = Boolean(loopMode);
+  if ("mediaSession" in navigator && "MediaMetadata" in window) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: labelForKey(activeKey), artist: "移動ド キープレイヤー" });
   }
-
-  setPlayingIndex(degreeIndex);
-  playTone(note, SEQUENCE_NOTE_DURATION, "legato");
-  loopTimer = window.setTimeout(() => {
-    loopTimer = undefined;
-    if (activeLoopMode !== loopMode) return;
-    scheduleLoopStep(order, (sequenceIndex + 1) % order.length);
-  }, SEQUENCE_STEP_MS);
+  // Call play directly in the click handler to retain mobile user activation.
+  sequenceAudio.play().catch((error) => {
+    if (version !== playbackVersion) return;
+    stopLoop();
+    playbackStatus.textContent = "再生できませんでした。もう一度再生ボタンを押してください。";
+    console.error(error);
+  });
 }
 
 function playLoopSequence(mode, order) {
   if (activeLoopMode === mode) {
     clearScheduledTimers();
-    clearPlaying();
     return;
   }
-
-  clearScheduledTimers();
-  activeLoopMode = mode;
-  updateLoopControls();
-  scheduleLoopStep(order);
+  playSequence(order, mode);
 }
+
+sequenceAudio.addEventListener("play", syncPlaybackHighlight);
+sequenceAudio.addEventListener("pause", syncPlaybackHighlight);
+sequenceAudio.addEventListener("seeked", syncPlaybackHighlight);
+sequenceAudio.addEventListener("ended", () => {
+  activeLoopMode = null;
+  updateLoopControls();
+  syncPlaybackHighlight();
+});
+sequenceAudio.addEventListener("error", () => {
+  if (!playingOrder) return;
+  stopLoop();
+  playbackStatus.textContent = "音声を再生できませんでした。もう一度再生ボタンを押してください。";
+});
+document.addEventListener("visibilitychange", syncPlaybackHighlight);
 
 function renderOptions() {
   const groups = [
@@ -503,6 +580,7 @@ function render() {
   noteLine.textContent = activeNotes.map((scaleNote) => scaleNote.note).join(" ");
   renderSolfegeButtons();
   renderKeyboard();
+  prepareSequences();
 }
 
 renderOptions();

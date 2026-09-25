@@ -156,6 +156,25 @@ h2 {
   justify-content: flex-end;
 }
 
+#sequence-audio {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+}
+
+#playback-status {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.action-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+  transform: none;
+}
+
 .action-button,
 .solfege-button {
   min-height: 48px;
